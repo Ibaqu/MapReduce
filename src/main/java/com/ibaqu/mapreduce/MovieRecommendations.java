@@ -9,12 +9,8 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
-import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 
 import java.io.IOException;
-import java.net.http.WebSocket;
-import java.util.ArrayList;
-import java.util.StringTokenizer;
 
 public class MovieRecommendations {
 
@@ -38,20 +34,23 @@ public class MovieRecommendations {
 
         public void map(LongWritable key, Text fileContents, Context context) throws IOException, InterruptedException {
             String line = fileContents.toString();
-            String[] values = line.split("::");
 
-            String userId = values[USER_ID];
-            String movieId = values[MOVIE_ID];
-            String movieRating = values[MOVIE_RATING];
+            if (!line.isEmpty()) {
+                String[] values = line.split("-");
 
-            Text userId_Text = new Text(userId);
-            Text movieId_Text = new Text(movieId);
-            Text movieRating_Text = new Text(movieRating);
+                String userId = values[USER_ID];
+                String movieId = values[MOVIE_ID];
+                String movieRating = values[MOVIE_RATING];
 
-            ArrayWritable movieIdAndRating = new ArrayWritable(Text.class);
-            movieIdAndRating.set(new Text[] { movieId_Text, movieRating_Text });
+                Text userId_Text = new Text(userId);
+                Text movieId_Text = new Text(movieId);
+                Text movieRating_Text = new Text(movieRating);
 
-            context.write(userId_Text, movieIdAndRating);
+                ArrayWritable movieIdAndRating = new ArrayWritable(Text.class);
+                movieIdAndRating.set(new Text[] { movieId_Text, movieRating_Text });
+
+                context.write(userId_Text, movieIdAndRating);
+            }
         }
 
         // Output : UserID, (MovieID , Rating) After shuffling im assuming
@@ -106,7 +105,10 @@ public class MovieRecommendations {
 
         // Set Output
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(IntWritable.class);
+        job.setOutputValueClass(Text.class);
+
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(ArrayWritable.class);
 
         job.setInputFormatClass(TextInputFormat.class);
         job.setOutputFormatClass(TextOutputFormat.class);
