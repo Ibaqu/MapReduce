@@ -1,5 +1,6 @@
 package com.ibaqu.mapreduce;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.Job;
@@ -78,17 +79,23 @@ public class MovieRecommendations {
         //      98     ( [19,2])
     }
 
-    public static class Reduce extends Reducer<Text, TextArrayWritable, Text, CustomWritable> {
+    public static class Reduce extends Reducer<Text, TextArrayWritable, Text, Text> {
+
+        public static String COMMA = ",";
+        public static String SEPARATOR = "|";
+        public static String HYPHEN = "-";
 
         public void reduce(Text userId, Iterable<TextArrayWritable> movieIdAndRatingArray, Context context)
                 throws IOException, InterruptedException{
 
             int movieCount = 0;    // Number of movies watched per person
             int ratingSum = 0;     // Sum of the movie rating
+            String value = "";
 
             // Go through each Movie and Rating in values
-            // Sample : ( [19,2 | 21,1 | 70,4] )
+            // Sample : ([19,2 | 21,1 | 70,4] )
             for (TextArrayWritable movieIdAndRating : movieIdAndRatingArray) {
+                // Tally the number of movies
                 movieCount += 1;
 
                 // Extract movieId and movieRating
@@ -96,21 +103,32 @@ public class MovieRecommendations {
                 Text movieId = (Text) movieIdAndRating.get()[0];
                 Text movieRating = (Text) movieIdAndRating.get()[1];
 
-                // Aggregate all ratings
+                // Append the movie|rating pair to the 'value' string
+                value += movieId.toString() + SEPARATOR + movieRating.toString();
+                value += HYPHEN;
+
+                // Aggregate all ratings for the movie
                 ratingSum += Integer.parseInt(movieRating.toString());
             }
 
-            // Value : (movie_count , rating_sum, [ (MovieID , Rating), (MovieID, Rating)])
+            // Remove last hyphen
+            value = StringUtils.substring(value, 0, value.length()-1);
 
-            IntWritable movieCountInt = new IntWritable(movieCount);
-            IntWritable ratingSumInt = new IntWritable(ratingSum);
+            // Append movieCount and ratingSum
+            value += COMMA + String.valueOf(movieCount);
+            value += COMMA + String.valueOf(ratingSum);
 
-            // Initialize our Custom Writable with IntWritable, IntWritable, Iterable<ArrayWritable>
-            CustomWritable customWritable = new CustomWritable(movieCountInt, ratingSumInt, movieIdAndRatingArray);
-
-            context.write(userId, customWritable);
+            // Final value should be written like this :
+            // userId       movieId|movieRating-movieId|movieRating,movieCount,ratingSum
+            context.write(userId, new Text(value));
         }
 
+        // Output : UserId  movieId|rating...,movieCount,ratingSum
+        //  17	    70|3,1,3
+        //  35	    21|1,1,1
+        //  49	    70|4-21|1-19|2,3,7
+        //  87	    21|2-19|1,2,3
+        //  98	    19|2,1,2
     }
 
     public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
@@ -122,7 +140,7 @@ public class MovieRecommendations {
 
         // Set Output
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(CustomWritable.class);
+        job.setOutputValueClass(Text.class);
 
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(TextArrayWritable.class);
