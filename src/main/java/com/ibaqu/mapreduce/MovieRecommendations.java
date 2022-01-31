@@ -14,6 +14,27 @@ import java.io.IOException;
 
 public class MovieRecommendations {
 
+    public static class TextArrayWritable extends ArrayWritable {
+
+        public TextArrayWritable() {
+            super(Text.class);
+        }
+
+        public TextArrayWritable(String[] strings) {
+            super(Text.class);
+            Text[] texts = new Text[strings.length];
+            for (int i = 0; i < strings.length; i++) {
+                texts[i] = new Text(strings[i]);
+            }
+            set(texts);
+        }
+
+        @Override
+        public Writable[] get() {
+            return super.get();
+        }
+    }
+
     public static class Map extends Mapper<LongWritable, Text, Text, ArrayWritable> {
 
         private final int USER_ID = 0;
@@ -43,13 +64,9 @@ public class MovieRecommendations {
                 String movieRating = values[MOVIE_RATING];
 
                 Text userId_Text = new Text(userId);
-                Text movieId_Text = new Text(movieId);
-                Text movieRating_Text = new Text(movieRating);
+                TextArrayWritable test = new TextArrayWritable(new String[] { movieId, movieRating });
 
-                ArrayWritable movieIdAndRating = new ArrayWritable(Text.class);
-                movieIdAndRating.set(new Text[] { movieId_Text, movieRating_Text });
-
-                context.write(userId_Text, movieIdAndRating);
+                context.write(userId_Text, test);
             }
         }
 
@@ -61,9 +78,9 @@ public class MovieRecommendations {
         //      98     ( [19,2])
     }
 
-    public static class Reduce extends Reducer<Text, ArrayWritable, Text, CustomWritable> {
+    public static class Reduce extends Reducer<Text, TextArrayWritable, Text, CustomWritable> {
 
-        public void reduce(Text userId, Iterable<ArrayWritable> movieIdAndRatingArray, Context context)
+        public void reduce(Text userId, Iterable<TextArrayWritable> movieIdAndRatingArray, Context context)
                 throws IOException, InterruptedException{
 
             int movieCount = 0;    // Number of movies watched per person
@@ -71,7 +88,7 @@ public class MovieRecommendations {
 
             // Go through each Movie and Rating in values
             // Sample : ( [19,2 | 21,1 | 70,4] )
-            for (ArrayWritable movieIdAndRating : movieIdAndRatingArray) {
+            for (TextArrayWritable movieIdAndRating : movieIdAndRatingArray) {
                 movieCount += 1;
 
                 // Extract movieId and movieRating
@@ -105,10 +122,10 @@ public class MovieRecommendations {
 
         // Set Output
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(Text.class);
+        job.setOutputValueClass(CustomWritable.class);
 
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(ArrayWritable.class);
+        job.setMapOutputValueClass(TextArrayWritable.class);
 
         job.setInputFormatClass(TextInputFormat.class);
         job.setOutputFormatClass(TextOutputFormat.class);

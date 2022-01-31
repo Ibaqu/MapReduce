@@ -14,7 +14,7 @@ public class CustomWritable implements Writable {
 
     private IntWritable movieCount;
     private IntWritable ratingSum;
-    private Iterable<ArrayWritable> movieIdAndRatingArray;
+    private Iterable<MovieRecommendations.TextArrayWritable> movieIdAndRatingArray;
 
 //    public CustomWritable() {
 //        movieCount = new IntWritable(0);
@@ -28,7 +28,7 @@ public class CustomWritable implements Writable {
 //    }
 
     public CustomWritable(IntWritable movieCount, IntWritable ratingSum,
-                          Iterable<ArrayWritable> movieIdAndRatingArray) {
+                          Iterable<MovieRecommendations.TextArrayWritable> movieIdAndRatingArray) {
         this.movieCount = movieCount;
         this.ratingSum = ratingSum;
         this.movieIdAndRatingArray = movieIdAndRatingArray;
