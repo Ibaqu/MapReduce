@@ -2,6 +2,7 @@ package com.ibaqu.mapreduce;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.math3.exception.MathIllegalArgumentException;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.*;
@@ -63,7 +64,7 @@ public class MovieRecommendations {
             String line = fileContents.toString();
 
             if (!line.isEmpty()) {
-                String[] values = line.split("-");
+                String[] values = line.split("::");
 
                 String userId = values[USER_ID];
                 String movieId = values[MOVIE_ID];
@@ -87,7 +88,7 @@ public class MovieRecommendations {
     public static class Reduce1 extends Reducer<Text, TextArrayWritable, Text, Text> {
 
         private static String COMMA = ",";
-        private static String SEPARATOR = "|";
+        private static String SEPARATOR = "/";
         private static String HYPHEN = "-";
         private static int MOVIEID = 0;
         private static int RATING = 1;
@@ -143,7 +144,7 @@ public class MovieRecommendations {
 
         public static String COMMA = ",";
         public static String HYPHEN = "-";
-        public static String SEPARATOR = "|";
+        public static String SEPARATOR = "/";
 
         public static int MOVIE = 0;
         public static int RATING = 1;
@@ -199,7 +200,7 @@ public class MovieRecommendations {
         }
     }
 
-    public static class Reduce2 extends Reducer<Text, ArrayWritable, Text, Text> {
+    public static class Reduce2 extends Reducer<Text, TextArrayWritable, Text, Text> {
 
         private static int RATING_X = 0;
         private static int RATING_Y = 1;
@@ -237,10 +238,13 @@ public class MovieRecommendations {
             double[] rydoubleArray = ArrayUtils.toPrimitive(ryDoubleList.toArray(new Double[0]));
 
             // Calculate the correlation
-            double correlation = new PearsonsCorrelation().correlation(rxdoubleArray, rydoubleArray);
-            Text corr = new Text(String.valueOf(correlation));
-
-            context.write(movieIdPair, corr);
+            try {
+                double correlation = new PearsonsCorrelation().correlation(rxdoubleArray, rydoubleArray);
+                Text corr = new Text(String.valueOf(correlation));
+                context.write(movieIdPair, corr);
+            } catch (MathIllegalArgumentException e) {
+                context.write(movieIdPair, new Text("Error in Correlation"));
+            }
         }
 
     }
