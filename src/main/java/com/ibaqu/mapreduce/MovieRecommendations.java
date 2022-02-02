@@ -20,7 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class MovieRecommendations {
-
+    // Custom Writable to pass Text Arrays between Mapper and Reducer
     public static class TextArrayWritable extends ArrayWritable {
 
         public TextArrayWritable() {
@@ -92,7 +92,6 @@ public class MovieRecommendations {
         private static String HYPHEN = "-";
         private static int MOVIEID = 0;
         private static int RATING = 1;
-
 
         public void reduce(Text userId, Iterable<TextArrayWritable> movieIdAndRatingArray, Context context)
                 throws IOException, InterruptedException{
@@ -209,17 +208,14 @@ public class MovieRecommendations {
                            Context context) throws IOException, InterruptedException {
             // Based on all users ratings, all we get is the movie pair. Using these movie pairs, we take the ratings
             // pair and create 2 arrays which we will feed into the Pearson Correlation values.
-            // ex. 21,19    1,2 | 2, 1 | 3, 5 | .... (for the multiple users that rated these
+            // ex. 21,19    1,2 | 2, 1 | 3, 5 | .... (for the multiple users that rated these)
             // Output should be the correlation between the pair only
 
-
             // Go through each Rating pair and take each individual rating and put them in a double array
-
             List<Double> rxDoubleList = new ArrayList<>();
             List<Double> ryDoubleList = new ArrayList<>();
 
             for (TextArrayWritable rating : ratingPair) {
-
                 // Extract Text value of each movie rating
                 Text rating_x = (Text) rating.get()[RATING_X];
                 Text rating_y = (Text) rating.get()[RATING_Y];
@@ -231,7 +227,6 @@ public class MovieRecommendations {
                 // Add to list
                 rxDoubleList.add(rxDouble);
                 ryDoubleList.add(ryDouble);
-
             }
 
             double[] rxdoubleArray = ArrayUtils.toPrimitive(rxDoubleList.toArray(new Double[0]));
@@ -240,13 +235,15 @@ public class MovieRecommendations {
             // Calculate the correlation
             try {
                 double correlation = new PearsonsCorrelation().correlation(rxdoubleArray, rydoubleArray);
-                Text corr = new Text(String.valueOf(correlation));
-                context.write(movieIdPair, corr);
+
+                if (!Double.isNaN(correlation)) {
+                    Text corr = new Text(String.valueOf(correlation));
+                    context.write(movieIdPair, corr);
+                }
             } catch (MathIllegalArgumentException e) {
-                context.write(movieIdPair, new Text("Error in Correlation"));
+                // Ignore illegal arguments that may arise in the data
             }
         }
-
     }
 
     public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
